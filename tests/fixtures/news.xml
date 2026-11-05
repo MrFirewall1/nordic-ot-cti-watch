@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel><title>Fictional test feed</title>
+<item><title>Pro-Russian hacktivists claim attack on Norwegian dam control system</title><link>https://news.example/dam</link><pubDate>Mon, 02 Nov 2026 08:00:00 GMT</pubDate><description>The group posted a video of an HMI being manipulated.</description></item>
+<item><title>NoName057(16) launches DDoS attacks on Swedish municipalities</title><link>https://news.example/noname-se</link><pubDate>Mon, 02 Nov 2026 09:00:00 GMT</pubDate><description>Dozens of &lt;b&gt;sites&lt;/b&gt; were hit.</description></item>
+<item><title>Hackers disrupt water treatment plant in Texas</title><link>https://news.example/texas</link><pubDate>Mon, 02 Nov 2026 10:00:00 GMT</pubDate><description>Operators switched to manual control.</description></item>
+<item><title>Siemens patches critical vulnerability in SIMATIC PLCs (CVE-2026-1234)</title><link>https://news.example/patch</link><pubDate>Mon, 02 Nov 2026 11:00:00 GMT</pubDate><description>Attackers could take control of industrial control systems in Norway and elsewhere.</description></item>
+<item><title>New phishing campaign targets bank customers</title><link>https://news.example/phish</link><pubDate>Mon, 02 Nov 2026 12:00:00 GMT</pubDate><description>Nothing to do with OT.</description></item>
+<item><title>Old attack on Finnish power grid</title><link>https://news.example/old</link><pubDate>Mon, 05 Oct 2026 12:00:00 GMT</pubDate><description>Too old.</description></item>
+</channel></rss>

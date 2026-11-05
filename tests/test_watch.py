@@ -109,6 +109,42 @@ class FeedTests(unittest.TestCase):
         self.assertEqual(score_advisory(ads["Unwatched Vendor HMI"], cfg).priority, "LOW")
 
 
+class NewsTests(unittest.TestCase):
+    def setUp(self):
+        from nordic_ot_cti_watch.cli import fetch_feed_file
+        from nordic_ot_cti_watch.news import parse_telegram
+        self.news = {i.link: i for i in fetch_feed_file(str(FIX / "news.xml"))}
+        self.tg = parse_telegram((FIX / "telegram.html").read_text(), "examplechannel")
+
+    def prio(self, item):
+        from nordic_ot_cti_watch.news import score_news
+        return score_news(item, []).priority
+
+    def test_nordic_ot_attack_is_high(self):
+        self.assertEqual(self.prio(self.news["https://news.example/dam"]), "HIGH")
+
+    def test_hacktivist_campaign_against_nordic_country_is_high(self):
+        self.assertEqual(self.prio(self.news["https://news.example/noname-se"]), "HIGH")
+
+    def test_ot_attack_elsewhere_is_medium(self):
+        self.assertEqual(self.prio(self.news["https://news.example/texas"]), "MEDIUM")
+
+    def test_cve_and_patch_news_is_dropped(self):
+        self.assertEqual(self.prio(self.news["https://news.example/patch"]), "LOW")
+
+    def test_unrelated_news_is_dropped(self):
+        self.assertEqual(self.prio(self.news["https://news.example/phish"]), "LOW")
+
+    def test_telegram_posts(self):
+        self.assertEqual([p.link for p in self.tg], [f"https://t.me/examplechannel/{n}" for n in (101, 102, 103)])
+        self.assertIn("example-energi.se", self.tg[0].summary)
+        self.assertEqual([self.prio(p) for p in self.tg], ["HIGH", "LOW", "MEDIUM"])
+
+    def test_watchlist_in_news_is_critical(self):
+        from nordic_ot_cti_watch.news import score_news
+        self.assertEqual(score_news(self.tg[0], ["example-energi"]).priority, "CRITICAL")
+
+
 class CliTests(unittest.TestCase):
     def test_end_to_end_and_dedupe(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -192,6 +228,38 @@ class CliTests(unittest.TestCase):
                 self.assertEqual(json.loads((Path(tmp) / "seen.json").read_text()), {})
         finally:
             out._post_json = orig
+            os.environ.pop("TELEGRAM_BOT_TOKEN"); os.environ.pop("TELEGRAM_CHAT_ID")
+
+    def test_new_source_gets_its_own_baseline(self):
+        import nordic_ot_cti_watch.output as out
+        sent = []
+        orig_post, orig_sleep = out._post_json, out.time.sleep
+        out._post_json = lambda url, body, timeout: sent.append(body["text"])
+        out.time.sleep = lambda s: None
+        os.environ.update({"TELEGRAM_BOT_TOKEN": "123:abc", "TELEGRAM_CHAT_ID": "42"})
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                cfg = Path(tmp) / "config.toml"
+                cfg.write_text(f'[output]\nstate_file = "{tmp}/seen.json"\nreport_dir = "{tmp}/r"\n')
+                base = ["-c", str(cfg), "--victims-file", str(FIX / "victims.json"),
+                        "--feed-file", str(FIX / "ics-advisories.xml"),
+                        "--now", "2026-11-03T00:00:00+00:00"]
+                main(base)
+                sent.clear()
+                # news is added later: one "new source" summary, no burst of old articles
+                main(base + ["--news-file", str(FIX / "news.xml")])
+                self.assertEqual(len(sent), 1)
+                self.assertIn("New source enabled: news", sent[0])
+                self.assertIn("2 HIGH", sent[0])  # the 5 week old article is skipped
+                sent.clear()
+                # then a new channel post is alerted on its own
+                main(base + ["--news-file", str(FIX / "news.xml"),
+                             "--telegram-file", str(FIX / "telegram.html")])
+                self.assertEqual(len(sent), 2)  # Sweden post (HIGH) + SCADA post (MEDIUM)
+                self.assertIn("hacktivist channel", sent[0])
+                self.assertIn("example-energi.se", sent[0])
+        finally:
+            out._post_json, out.time.sleep = orig_post, orig_sleep
             os.environ.pop("TELEGRAM_BOT_TOKEN"); os.environ.pop("TELEGRAM_CHAT_ID")
 
     def test_unknown_config_key_rejected(self):

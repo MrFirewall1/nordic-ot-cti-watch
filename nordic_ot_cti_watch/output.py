@@ -9,6 +9,7 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .news import NewsItem
 from .scoring import Finding
 from .sources import USER_AGENT, Advisory, Victim
 
@@ -45,20 +46,32 @@ def line(f: Finding) -> str:
         return (f"{ICON[f.priority]} [{f.priority}] {i.victim} ({i.country or '??'}) "
                 f"claimed by {i.group}, sector: {i.activity or 'unknown'}"
                 + (f" | {why}" if why and not why.endswith(i.activity) else ""))
+    if isinstance(i, NewsItem):
+        return f"{ICON[f.priority]} [{f.priority}] {i.source}: {i.title}"
     return f"{ICON[f.priority]} [{f.priority}] ICS advisory: {i.title}"
 
 
 def markdown_report(findings: list[Finding], generated: datetime) -> str:
     rw = [f for f in findings if f.kind == "ransomware"]
     ics = [f for f in findings if f.kind == "ics-advisory"]
+    news = [f for f in findings if f.kind == "news"]
     out = [f"# Nordic OT CTI Watch report",
            "",
            f"Generated {generated.strftime('%Y-%m-%d %H:%M UTC')}. "
-           f"{len(rw)} new ransomware claims and {len(ics)} new ICS advisories matched the filters.",
+           f"{len(news)} new attack signals, {len(rw)} new ransomware claims and "
+           f"{len(ics)} new ICS advisories matched the filters.",
            "",
            "> Leak site claims are unverified. A listing means a group *claims* an attack. "
            "Confirm with the organisation or official sources before acting.",
            ""]
+    if news:
+        out += ["## Attack signals (hacktivist channels and news)", "",
+                "| Priority | Item | Source | Published | Why |", "|---|---|---|---|---|"]
+        for f in news:
+            n: NewsItem = f.item  # type: ignore[assignment]
+            out.append(f"| {ICON[f.priority]} {f.priority} | [{_md(n.title)}]({n.link}) | "
+                       f"{_md(n.source)} | {n.published[:10]} | {_md('; '.join(f.reasons))} |")
+        out.append("")
     if rw:
         out += ["## Ransomware leak site claims", "",
                 "| Priority | Victim | Country | Sector | Group | Discovered | Why | Source |",
@@ -155,6 +168,14 @@ def telegram_messages(findings: list[Finding]) -> list[str]:
                 f"Why: {_esc('; '.join(f.reasons))}\n"
                 f"Discovered: {_esc(i.discovered[:16].replace('T', ' '))} UTC"
                 f"{link}\n<i>Unverified leak site claim.</i>")
+        elif isinstance(i, NewsItem):
+            head = "hacktivist channel" if i.channel else "attack news"
+            body = f"\n{_esc(i.summary[:600])}" if i.channel else ""
+            msgs.append(
+                f"{ICON[f.priority]} <b>{f.priority}: {head}</b>\n"
+                f'<a href="{_esc(i.link)}">{_esc(i.title)}</a>{body}\n'
+                f"Source: {_esc(i.source)}\nWhy: {_esc('; '.join(f.reasons))}\n"
+                f"Published: {_esc(i.published[:16].replace('T', ' '))}")
         else:
             cves = f"\nCVEs: {_esc(', '.join(i.cves[:5]))}" if getattr(i, "cves", None) else ""
             msgs.append(

@@ -3,10 +3,11 @@ name: watch
 # Runs every hour in the cloud, also when your own computer is off.
 # Alerts go to Telegram when these repository secrets are set:
 #   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
-# Optional secrets: CTI_WATCHLIST (comma separated names), CTI_WEBHOOK_URL.
+# Optional secrets: CTI_WATCHLIST (comma separated names), CTI_TELEGRAM_CHANNELS (comma separated
+# public hacktivist channel names), CTI_WEBHOOK_URL.
 on:
   schedule:
-    - cron: "23 * * * *"
+    - cron: "7,37 * * * *"   # every 30 min. Public repo: Actions minutes are free, so "*/10 * * * *" is fine
   workflow_dispatch:
     inputs:
       test_alert:
@@ -27,6 +28,7 @@ jobs:
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       CTI_WATCHLIST: ${{ secrets.CTI_WATCHLIST }}
       CTI_WEBHOOK_URL: ${{ secrets.CTI_WEBHOOK_URL }}
+      CTI_TELEGRAM_CHANNELS: ${{ secrets.CTI_TELEGRAM_CHANNELS }}
       # Read only token, used for the GitHub API call that lists CISA's CSAF advisories.
       GITHUB_TOKEN: ${{ github.token }}
     permissions:

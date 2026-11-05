@@ -22,6 +22,21 @@ DEFAULT_ICS_VENDORS = [
     "Johnson Controls", "Kongsberg", "Wago", "Beckhoff",
 ]
 
+# Attack news. "country" marks a Nordic source whose articles rarely name their own country.
+DEFAULT_NEWS_FEEDS = [
+    {"name": "The Record", "url": "https://therecord.media/feed/"},
+    {"name": "BleepingComputer", "url": "https://www.bleepingcomputer.com/feed/"},
+    {"name": "SecurityWeek ICS/OT", "url": "https://www.securityweek.com/category/ics-ot/feed/"},
+    {"name": "Industrial Cyber", "url": "https://industrialcyber.co/feed/"},
+    {"name": "The Hacker News", "url": "https://feeds.feedburner.com/TheHackersNews"},
+    {"name": "CERT-SE", "url": "https://www.cert.se/feed.rss", "country": "SE"},
+    {"name": "NRK", "url": "https://www.nrk.no/toppsaker.rss", "country": "NO"},
+    {"name": "digi.no", "url": "https://www.digi.no/rss", "country": "NO"},
+    {"name": "SVT", "url": "https://www.svt.se/nyheter/rss.xml", "country": "SE"},
+    {"name": "DR", "url": "https://www.dr.dk/nyheder/service/feeds/allenyheder", "country": "DK"},
+    {"name": "Yle", "url": "https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET", "country": "FI"},
+]
+
 
 @dataclass
 class Config:
@@ -38,6 +53,11 @@ class Config:
     # "csaf" = CISA's CSAF repo on GitHub (works from cloud runners), "rss" = cisa.gov feed.
     ics_source: str = "csaf"
     ics_limit: int = 15
+    enable_news: bool = False
+    news_feeds: list[dict] = field(default_factory=lambda: [dict(f) for f in DEFAULT_NEWS_FEEDS])
+    # Public hacktivist channels read via t.me/s/<name>. Names change often, so they are set in
+    # config or the CTI_TELEGRAM_CHANNELS secret rather than hard coded.
+    telegram_channels: list[str] = field(default_factory=list)
     enable_ransomware: bool = True
     enable_ics_advisories: bool = True
     request_delay_seconds: float = 2.0
@@ -56,7 +76,7 @@ class Config:
         if not p.exists():
             raise FileNotFoundError(f"config file not found: {p}")
         data = tomllib.loads(p.read_text(encoding="utf-8"))
-        for section in ("filters", "sources", "output", "network"):
+        for section in ("filters", "sources", "news", "output", "network"):
             for key, value in (data.get(section) or {}).items():
                 if not hasattr(cfg, key):
                     raise ValueError(f"unknown config key [{section}].{key}")

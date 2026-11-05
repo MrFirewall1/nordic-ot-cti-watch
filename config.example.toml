@@ -27,13 +27,40 @@ max_age_days = 14
 
 [sources]
 enable_ransomware = true
-enable_ics_advisories = true
+# ICS vulnerability advisories (CVEs). Off: this watcher is about attacks, not patches.
+enable_ics_advisories = false
 ransomware_api = "https://api.ransomware.live/v2"
 # "csaf": CISA advisories from github.com/cisagov/CSAF (works from GitHub Actions).
 # "rss":  the cisa.gov RSS feed (often blocked with HTTP 403 from cloud servers).
 ics_source = "csaf"
 ics_limit = 15
 cisa_ics_feed = "https://www.cisa.gov/cybersecurity-advisories/ics-advisories.xml"
+
+[news]
+# Attack signals. HIGH = Nordic + attack + (OT/critical infrastructure or known hacktivist group),
+# or any Nordic target in a hacktivist channel. MEDIUM = OT attack elsewhere. CVE/patch news is dropped.
+enable_news = true
+
+# Public hacktivist Telegram channels, read via https://t.me/s/<name> (no login, no account).
+# This is the earliest public signal: groups like NoName057(16) post target lists here when an
+# attack starts, often hours before the news. Names change when channels are banned, so keep
+# the list current, e.g. from deepdarkCTI's telegram_threat_actors.md. In GitHub Actions use the
+# CTI_TELEGRAM_CHANNELS secret (comma separated) instead of editing this file.
+telegram_channels = []
+
+news_feeds = [
+  { name = "The Record", url = "https://therecord.media/feed/" },
+  { name = "BleepingComputer", url = "https://www.bleepingcomputer.com/feed/" },
+  { name = "SecurityWeek ICS/OT", url = "https://www.securityweek.com/category/ics-ot/feed/" },
+  { name = "Industrial Cyber", url = "https://industrialcyber.co/feed/" },
+  { name = "The Hacker News", url = "https://feeds.feedburner.com/TheHackersNews" },
+  { name = "CERT-SE", url = "https://www.cert.se/feed.rss", country = "SE" },
+  { name = "NRK", url = "https://www.nrk.no/toppsaker.rss", country = "NO" },
+  { name = "digi.no", url = "https://www.digi.no/rss", country = "NO" },
+  { name = "SVT", url = "https://www.svt.se/nyheter/rss.xml", country = "SE" },
+  { name = "DR", url = "https://www.dr.dk/nyheder/service/feeds/allenyheder", country = "DK" },
+  { name = "Yle", url = "https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET", country = "FI" },
+]
 
 [network]
 request_delay_seconds = 2.0

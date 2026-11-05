@@ -1,30 +1,32 @@
 # Nordic OT CTI Watch
 
-**Early warning on ransomware leak site claims and ICS advisories that matter to Nordic organisations and operational technology.**
+**Early warning on cyber attacks against Nordic operational technology and critical infrastructure: hacktivist announcements, attack news and ransomware claims.**
 
 [![tests](https://github.com/MrFirewall1/nordic-ot-cti-watch/actions/workflows/tests.yml/badge.svg)](https://github.com/MrFirewall1/nordic-ot-cti-watch/actions/workflows/tests.yml)
 ![python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![deps](https://img.shields.io/badge/dependencies-none-brightgreen)
 ![license](https://img.shields.io/badge/license-MIT-lightgrey)
 
-Hundreds of organisations are listed on ransomware leak sites every month. Most of them are not relevant to a Nordic OT defender. This tool filters the noise and answers one question: **did something just happen to an organisation in the Nordics, in an OT relevant sector, or on my watchlist?**
+Hundreds of organisations are listed on ransomware leak sites every month. Most of them are not relevant to a Nordic OT defender. This tool filters the noise and answers one question: **is someone attacking OT or critical infrastructure in the Nordics right now, or announcing that they will?**
 
-It is a small, dependency free Python tool that runs every hour in GitHub Actions (or a lab VM) and sends what matters to Telegram, Slack, Teams or Discord.
+It is a small, dependency free Python tool that runs every 30 minutes in GitHub Actions (or a lab VM) and sends what matters to Telegram, Slack, Teams or Discord.
 
 ## What it does
 
 ```
-┌──────────────────────────┐     ┌───────────────────────────┐
-│ ransomware.live API      │     │ CISA ICS advisories (CSAF)│
-│ recent + NO SE DK FI IS  │     │                           │
-└────────────┬─────────────┘     └─────────────┬─────────────┘
-             │                                 │
-             ▼                                 ▼
+┌────────────────────┐ ┌────────────────────┐ ┌────────────────────┐
+│ Hacktivist         │ │ Attack news + CERT │ │ ransomware.live    │
+│ Telegram channels  │ │ (The Record, NRK,  │ │ leak site claims   │
+│ (earliest signal)  │ │ SVT, DR, Yle, ...) │ │ NO SE DK FI IS     │
+└─────────┬──────────┘ └─────────┬──────────┘ └─────────┬──────────┘
+          └──────────────────────┼──────────────────────┘
+                                 ▼
 ┌───────────────────────────────────────────────────────────┐
 │ Triage                                                    │
 │  CRITICAL  watchlist match (employer, customer, supplier) │
-│  HIGH      Nordic victim in an OT relevant sector         │
-│  MEDIUM    other Nordic victim / watched ICS vendor       │
+│  HIGH      Nordic target + OT / critical infra or known   │
+│            hacktivist group; Nordic victim in OT sector   │
+│  MEDIUM    OT attack elsewhere; other Nordic victim       │
 │  LOW       everything else (dropped by default)           │
 └────────────────────────────┬──────────────────────────────┘
                              ▼
@@ -37,8 +39,10 @@ It is a small, dependency free Python tool that runs every hour in GitHub Action
 
 | Source | What | Why |
 |---|---|---|
+| Hacktivist Telegram channels (public web preview `t.me/s/<name>`) | Target lists and attack claims from groups such as NoName057(16), Z-Pentest, Sector 16 and TwoNet | The earliest public signal. Groups post targets when a campaign starts, often hours before it reaches the news |
+| News and CERT feeds (The Record, BleepingComputer, SecurityWeek ICS/OT, Industrial Cyber, The Hacker News, CERT-SE, NRK, digi.no, SVT, DR, Yle) | Reported attacks | Confirms and adds context. Vulnerability, CVE and patch stories are dropped on purpose |
 | [ransomware.live](https://www.ransomware.live) API v2 | Victims claimed on ransomware leak sites, with country and sector | Early signal that an organisation may be compromised |
-| [CISA ICS advisories](https://www.cisa.gov/news-events/cybersecurity-advisories), read as CSAF from [cisagov/CSAF](https://github.com/cisagov/CSAF) | New vulnerabilities in industrial products, with CVEs and CVSS | Flags advisories for vendors common in Nordic OT (Siemens, ABB, Danfoss, Schneider Electric, Kongsberg and others). The CSAF repo is used because cisa.gov blocks many cloud servers |
+| [CISA ICS advisories](https://www.cisa.gov/news-events/cybersecurity-advisories) via [cisagov/CSAF](https://github.com/cisagov/CSAF) | Vulnerabilities in industrial products | **Off by default** (`enable_ics_advisories`). Turn it on if you also want CVE alerts for watched vendors |
 
 **OT relevant sectors** include energy and utilities, manufacturing, food and agriculture, transportation and logistics, water, oil and gas, chemicals, mining, maritime and aquaculture.
 
@@ -98,14 +102,15 @@ sudo cp /opt/nordic-ot-cti-watch/deploy/nordic-ot-cti-watch.{service,timer} /etc
 sudo systemctl daemon-reload && sudo systemctl enable --now nordic-ot-cti-watch.timer
 ```
 
-**GitHub Actions (hourly, runs in the cloud)**
+**GitHub Actions (every 30 minutes, runs in the cloud)**
 
-`.github/workflows/watch.yml` runs every hour on GitHub's servers, so it keeps working when your own computer is off. Each run writes its report to the job summary, and state is kept in the Actions cache so you only get new items.
+`.github/workflows/watch.yml` runs every 30 minutes on GitHub's servers, so it keeps working when your own computer is off. Each run writes its report to the job summary, and state is kept in the Actions cache so you only get new items.
 
 | Repository secret | Purpose |
 |---|---|
 | `TELEGRAM_BOT_TOKEN` | Bot token from [@BotFather](https://t.me/BotFather) |
 | `TELEGRAM_CHAT_ID` | Your chat ID (see below) |
+| `CTI_TELEGRAM_CHANNELS` | Recommended. Comma separated public hacktivist channel names to watch (see below) |
 | `CTI_WATCHLIST` | Optional. Comma separated organisation names, kept out of the public repo |
 | `CTI_WEBHOOK_URL` | Optional. Slack, Teams or Discord webhook |
 
@@ -141,9 +146,18 @@ export TELEGRAM_BOT_TOKEN=...  TELEGRAM_CHAT_ID=...
 python3 -m nordic_ot_cti_watch --test-alert
 ```
 
+## Hacktivist channels
+
+Groups such as NoName057(16) announce each day's targets in public Telegram channels, and OT focused groups post screenshots and videos of HMIs they claim to control. Reading those channels is how you hear about an attack before the news does.
+
+The watcher reads the public web preview at `https://t.me/s/<name>`: no Telegram account, no login, no joining. Channel names change often when Telegram bans them, so they are not hard coded. Find current names in [deepdarkCTI's Telegram list](https://github.com/fastfire/deepdarkCTI/blob/main/telegram_threat_actors.md) or your own CTI sources and put them in the `CTI_TELEGRAM_CHANNELS` secret, for example `channel_one,channel_two`. If a channel disappears, the run log says so and the other sources keep working.
+
+Any post from a watched channel that names a Nordic country (in English, the Nordic languages or Russian) or a Nordic domain is HIGH. A post that mentions SCADA, PLC, HMI or similar is MEDIUM.
+
 ## Design choices
 
-* **No Tor, no leak site access.** The tool only talks to public clearweb APIs. It drops the `.onion` claim URL from every record and links to the ransomware.live page instead. It never downloads leaked data.
+* **Attacks, not patches.** News about vulnerabilities, CVEs and patches is filtered out unless the headline is about an actual attack or exploitation.
+* **No Tor, no leak site access.** The tool only talks to public clearweb APIs and pages. It drops the `.onion` claim URL from every record and links to the ransomware.live page instead. It never downloads leaked data.
 * **No dependencies.** Standard library only, Python 3.11 or newer, so it runs on a fresh Ubuntu VM.
 * **Claims are not facts.** Every report states that a leak site listing is a claim, not a confirmed breach. Verify before acting, and handle findings about named organisations responsibly.
 * **Source labels can be wrong.** Country and sector come from ransomware.live and are sometimes inferred. A company can be tagged with the wrong country, or "Other" when it is clearly industrial. When the sector is missing or "Other", the tool falls back to the description, but only if it finds at least two different OT terms, so a municipality that mentions "transport" once is not flagged as OT. It always tells you which rule fired.
@@ -162,7 +176,7 @@ This tool is for defenders: SOC and CTI analysts, OT security teams and research
 
 ## Roadmap
 
-- [ ] More Nordic advisory feeds (NSM, CERT-SE, CFCS, NCSC-FI)
+- [ ] More Nordic feeds (NSM, CFCS, NCSC-FI, KraftCERT)
 - [ ] Group context: link each claim to the group's entry in deepdarkCTI
 - [ ] Simple HTML dashboard of findings over time
 
