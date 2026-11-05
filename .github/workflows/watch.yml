@@ -7,7 +7,7 @@ name: watch
 # public hacktivist channel names), CTI_WEBHOOK_URL.
 on:
   schedule:
-    - cron: "7,37 * * * *"   # every 30 min. Public repo: Actions minutes are free, so "*/10 * * * *" is fine
+    - cron: "*/10 * * * *"   # every 10 min (public repo: Actions minutes are free)
   workflow_dispatch:
     inputs:
       test_alert:
