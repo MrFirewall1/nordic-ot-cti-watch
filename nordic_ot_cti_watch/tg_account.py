@@ -8,6 +8,7 @@ watcher never sends, reacts or joins anything.
 from __future__ import annotations
 
 import asyncio
+import sys
 from datetime import datetime, timedelta, timezone
 
 from .news import NewsItem
@@ -46,6 +47,7 @@ async def _fetch(api_id: int, api_hash: str, session: str, since: datetime,
 
     items: list[TgItem] = []
     warnings: list[str] = []
+    chats = failed = 0
     # connect() instead of start(): start() would prompt for a phone number if the session is
     # invalid, which hangs in CI.
     client = TelegramClient(StringSession(session), api_id, api_hash)
@@ -56,6 +58,7 @@ async def _fetch(api_id: int, api_hash: str, session: str, since: datetime,
         async for d in client.iter_dialogs():
             if not (d.is_channel or d.is_group):
                 continue  # skip private chats and bots
+            chats += 1
             try:
                 async for m in client.iter_messages(d.entity, limit=per_chat):
                     if m.date < since:
@@ -65,9 +68,14 @@ async def _fetch(api_id: int, api_hash: str, session: str, since: datetime,
                     if it:
                         items.append(it)
             except Exception as e:  # noqa: BLE001  one closed chat should not stop the run
-                warnings.append(f"telegram account, {d.name}: {e}")
+                # No chat names here: the Actions log of a public repo is public.
+                failed += 1
+                warnings.append(f"telegram account: one chat could not be read ({type(e).__name__})")
     finally:
         await client.disconnect()
+    # Counts only, never chat names (public log).
+    print(f"research account: {chats} channels/groups read, {len(items)} posts, {failed} failed",
+          file=sys.stderr)
     return items, warnings
 
 
