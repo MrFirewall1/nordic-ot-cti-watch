@@ -1,0 +1,162 @@
+"""State (dedupe), reports and notifications."""
+from __future__ import annotations
+
+import json
+import time
+import urllib.request
+from dataclasses import asdict
+from datetime import datetime, timezone
+from pathlib import Path
+
+from .scoring import Finding
+from .sources import USER_AGENT, Advisory, Victim
+
+ICON = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡", "LOW": "⚪"}
+
+
+class State:
+    def __init__(self, path: str | Path):
+        self.path = Path(path)
+        self.seen: dict[str, str] = {}
+        if self.path.exists():
+            self.seen = json.loads(self.path.read_text(encoding="utf-8"))
+
+    def is_new(self, key: str) -> bool:
+        return key not in self.seen
+
+    def mark(self, key: str) -> None:
+        self.seen[key] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+    def save(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.write_text(json.dumps(self.seen, indent=1, sort_keys=True), encoding="utf-8")
+
+
+def _md(s: str) -> str:
+    return s.replace("|", "\\|").replace("\n", " ").strip()
+
+
+def line(f: Finding) -> str:
+    i = f.item
+    if isinstance(i, Victim):
+        why = next((r for r in f.reasons if r.startswith("watchlist")), "") or \
+            next((r for r in f.reasons if r.startswith("OT relevant")), "")
+        return (f"{ICON[f.priority]} [{f.priority}] {i.victim} ({i.country or '??'}) "
+                f"claimed by {i.group}, sector: {i.activity or 'unknown'}"
+                + (f" | {why}" if why and not why.endswith(i.activity) else ""))
+    return f"{ICON[f.priority]} [{f.priority}] ICS advisory: {i.title}"
+
+
+def markdown_report(findings: list[Finding], generated: datetime) -> str:
+    rw = [f for f in findings if f.kind == "ransomware"]
+    ics = [f for f in findings if f.kind == "ics-advisory"]
+    out = [f"# Nordic OT CTI Watch report",
+           "",
+           f"Generated {generated.strftime('%Y-%m-%d %H:%M UTC')}. "
+           f"{len(rw)} new ransomware claims and {len(ics)} new ICS advisories matched the filters.",
+           "",
+           "> Leak site claims are unverified. A listing means a group *claims* an attack. "
+           "Confirm with the organisation or official sources before acting.",
+           ""]
+    if rw:
+        out += ["## Ransomware leak site claims", "",
+                "| Priority | Victim | Country | Sector | Group | Discovered | Why | Source |",
+                "|---|---|---|---|---|---|---|---|"]
+        for f in rw:
+            v: Victim = f.item  # type: ignore[assignment]
+            out.append(f"| {ICON[f.priority]} {f.priority} | {_md(v.victim)} | {v.country} | "
+                       f"{_md(v.activity)} | {_md(v.group)} | {v.discovered[:10]} | "
+                       f"{_md('; '.join(f.reasons))} | "
+                       f"{f'[ransomware.live]({v.url})' if v.url else 'ransomware.live'} |")
+        out.append("")
+    if ics:
+        out += ["## ICS advisories for watched vendors", "",
+                "| Priority | Advisory | Vendors | Published |", "|---|---|---|---|"]
+        for f in ics:
+            a: Advisory = f.item  # type: ignore[assignment]
+            out.append(f"| {ICON[f.priority]} {f.priority} | [{_md(a.title)}]({a.link}) | "
+                       f"{_md(', '.join(a.vendors))} | {a.published[:10]} |")
+        out.append("")
+    if not findings:
+        out += ["No new items matched the filters.", ""]
+    out += ["---", "Data: [ransomware.live](https://www.ransomware.live) and "
+            "[CISA ICS advisories](https://www.cisa.gov/news-events/cybersecurity-advisories)."]
+    return "\n".join(out) + "\n"
+
+
+def write_reports(findings: list[Finding], report_dir: str | Path) -> tuple[Path, Path]:
+    now = datetime.now(timezone.utc)
+    d = Path(report_dir)
+    d.mkdir(parents=True, exist_ok=True)
+    md = d / f"report-{now.strftime('%Y%m%d-%H%M')}.md"
+    md.write_text(markdown_report(findings, now), encoding="utf-8")
+    jl = d / "findings.jsonl"
+    with jl.open("a", encoding="utf-8") as fh:
+        for f in findings:
+            fh.write(json.dumps({"seen_at": now.isoformat(timespec="seconds"), "kind": f.kind,
+                                 "priority": f.priority, "reasons": f.reasons,
+                                 **asdict(f.item)}, ensure_ascii=False) + "\n")
+    return md, jl
+
+
+def notify(findings: list[Finding], url: str, fmt: str, timeout: float = 15) -> None:
+    if not url or not findings:
+        return
+    text = "Nordic OT CTI Watch\n" + "\n".join(line(f) for f in findings[:25])
+    if len(findings) > 25:
+        text += f"\n... and {len(findings) - 25} more"
+    if fmt == "discord":
+        body = {"content": text[:1990]}
+    elif fmt == "teams":
+        body = {"text": text.replace("\n", "<br>")}
+    else:
+        body = {"text": text}
+    _post_json(url, body, timeout)
+
+
+def _post_json(url: str, body: dict, timeout: float) -> None:
+    req = urllib.request.Request(url, data=json.dumps(body).encode(), method="POST",
+                                 headers={"Content-Type": "application/json", "User-Agent": USER_AGENT})
+    with urllib.request.urlopen(req, timeout=timeout):
+        pass
+
+
+def _esc(s: str) -> str:
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def telegram_messages(findings: list[Finding]) -> list[str]:
+    """One message per finding (HTML), so each alert is readable on a phone."""
+    msgs = []
+    for f in findings:
+        i = f.item
+        if isinstance(i, Victim):
+            link = f'\n<a href="{_esc(i.url)}">ransomware.live</a>' if i.url else ""
+            msgs.append(
+                f"{ICON[f.priority]} <b>{f.priority}: ransomware claim</b>\n"
+                f"<b>{_esc(i.victim)}</b> ({_esc(i.country or '??')})\n"
+                f"Group: {_esc(i.group)}\nSector: {_esc(i.activity or 'unknown')}\n"
+                f"Why: {_esc('; '.join(f.reasons))}\n"
+                f"Discovered: {_esc(i.discovered[:16].replace('T', ' '))} UTC"
+                f"{link}\n<i>Unverified leak site claim.</i>")
+        else:
+            msgs.append(
+                f"{ICON[f.priority]} <b>{f.priority}: ICS advisory</b>\n"
+                f'<a href="{_esc(i.link)}">{_esc(i.title)}</a>\n'
+                f"Why: {_esc('; '.join(f.reasons))}")
+    return msgs
+
+
+def notify_telegram(findings: list[Finding], token: str, chat_id: str, timeout: float = 15,
+                    max_messages: int = 20, summary: str = "") -> None:
+    if not token or not chat_id or not (findings or summary):
+        return
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    msgs = ([summary] if summary else []) + telegram_messages(findings)
+    if len(msgs) > max_messages:
+        rest = len(msgs) - max_messages + 1
+        msgs = msgs[:max_messages - 1] + [f"… and {rest} more. See the report in GitHub Actions."]
+    for m in msgs:
+        _post_json(url, {"chat_id": chat_id, "text": m[:4000], "parse_mode": "HTML",
+                         "disable_web_page_preview": True}, timeout)
+        time.sleep(1.1)  # stay well under Telegram's per chat rate limit

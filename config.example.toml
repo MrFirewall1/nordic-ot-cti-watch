@@ -1,0 +1,43 @@
+# Nordic OT CTI Watch configuration. Copy to config.toml and adjust.
+
+[filters]
+# ISO 3166 alpha-2 codes. Victims in these countries are at least MEDIUM priority.
+countries = ["NO", "SE", "DK", "FI", "IS"]
+
+# Word-start matches against the victim sector ("activity") and description.
+# Nordic + OT sector = HIGH priority.
+ot_sectors = ["energy", "utilit", "power", "hydro", "grid", "heating", "manufactur", "industrial",
+              "automation", "refrigerat", "agricultur", "food", "dairy", "transport", "logistic",
+              "water", "oil", "gas", "chemical", "mining", "maritime", "shipping", "aquaculture"]
+
+# Organisations you care about (your employer, customers, suppliers).
+# Any match = CRITICAL. Keep the real list in a private config, not in a public repo.
+watchlist = []
+
+# Vendors to flag in CISA ICS advisories.
+ics_vendors = ["Siemens", "Danfoss", "Copeland", "Dixell", "Schneider Electric", "ABB",
+               "Hitachi Energy", "Rockwell", "Phoenix Contact", "Moxa", "Mitsubishi Electric",
+               "Honeywell", "Emerson", "Johnson Controls", "Kongsberg", "Wago", "Beckhoff"]
+
+# Lowest priority to report: LOW, MEDIUM, HIGH or CRITICAL.
+min_priority = "MEDIUM"
+
+# Ignore claims discovered more than this many days ago (0 = no limit).
+max_age_days = 14
+
+[sources]
+enable_ransomware = true
+enable_ics_advisories = true
+ransomware_api = "https://api.ransomware.live/v2"
+cisa_ics_feed = "https://www.cisa.gov/cybersecurity-advisories/ics-advisories.xml"
+
+[network]
+request_delay_seconds = 2.0
+timeout_seconds = 30.0
+
+[output]
+state_file = "state/seen.json"
+report_dir = "reports"
+# Prefer the CTI_WEBHOOK_URL environment variable over putting the URL here.
+webhook_url = ""
+webhook_format = "slack"   # slack | teams | discord

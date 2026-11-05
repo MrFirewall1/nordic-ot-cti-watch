@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0">
+  <channel>
+    <title>ICS Advisories (test fixture)</title>
+    <item>
+      <title>Siemens SIMATIC Example Controller</title>
+      <link>https://www.cisa.gov/news-events/ics-advisories/icsa-00-000-01</link>
+      <pubDate>Tue, 03 Nov 2026 12:00:00 +0000</pubDate>
+      <description>Test advisory for a Siemens product.</description>
+    </item>
+    <item>
+      <title>Danfoss AK-SM 800A Example</title>
+      <link>https://www.cisa.gov/news-events/ics-advisories/icsa-00-000-02</link>
+      <pubDate>Wed, 04 Nov 2026 12:00:00 +0000</pubDate>
+      <description>Test advisory for a refrigeration controller used by Contoso Energy.</description>
+    </item>
+    <item>
+      <title>Unwatched Vendor HMI</title>
+      <link>https://www.cisa.gov/news-events/ics-advisories/icsa-00-000-03</link>
+      <pubDate>Wed, 04 Nov 2026 13:00:00 +0000</pubDate>
+      <description>Not on the watchlist.</description>
+    </item>
+  </channel>
+</rss>

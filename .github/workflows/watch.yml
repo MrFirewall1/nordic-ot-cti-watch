@@ -1,0 +1,64 @@
+name: watch
+
+# Runs every hour in the cloud, also when your own computer is off.
+# Alerts go to Telegram when these repository secrets are set:
+#   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+# Optional secrets: CTI_WATCHLIST (comma separated names), CTI_WEBHOOK_URL.
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:
+    inputs:
+      test_alert:
+        description: "Only send a test alert to Telegram"
+        type: boolean
+        default: false
+
+concurrency:
+  group: watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      CTI_WATCHLIST: ${{ secrets.CTI_WATCHLIST }}
+      CTI_WEBHOOK_URL: ${{ secrets.CTI_WEBHOOK_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Send test alert
+        if: ${{ inputs.test_alert }}
+        run: python -m nordic_ot_cti_watch --test-alert
+
+      - name: Restore state
+        if: ${{ !inputs.test_alert }}
+        uses: actions/cache/restore@v4
+        with:
+          path: state
+          key: cti-state-${{ github.run_id }}
+          restore-keys: cti-state-
+
+      - name: Run watcher
+        if: ${{ !inputs.test_alert }}
+        run: |
+          set +e
+          python -m nordic_ot_cti_watch -c config.example.toml
+          code=$?
+          set -e
+          ls reports/report-*.md >/dev/null 2>&1 && cat reports/report-*.md >> "$GITHUB_STEP_SUMMARY" || echo "No new items this run." >> "$GITHUB_STEP_SUMMARY"
+          # 0 = nothing urgent, 1 = HIGH/CRITICAL found (still a successful run), 2 = all sources failed
+          [ "$code" -le 1 ]
+
+      - name: Save state
+        if: ${{ always() && !inputs.test_alert }}
+        uses: actions/cache/save@v4
+        with:
+          path: state
+          key: cti-state-${{ github.run_id }}

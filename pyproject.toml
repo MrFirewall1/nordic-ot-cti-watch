@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nordic-ot-cti-watch"
+version = "0.1.0"
+description = "Early warning on ransomware leak site claims and ICS advisories relevant to Nordic organisations and OT"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "MrFirewall1" }]
+keywords = ["cti", "threat-intelligence", "ransomware", "ics", "ot-security", "nordic"]
+dependencies = []
+
+[project.scripts]
+nordic-ot-cti-watch = "nordic_ot_cti_watch.cli:main"
+
+[tool.setuptools]
+packages = ["nordic_ot_cti_watch"]

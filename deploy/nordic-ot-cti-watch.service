@@ -1,0 +1,17 @@
+[Unit]
+Description=Nordic OT CTI Watch (one run)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=cti
+WorkingDirectory=/opt/nordic-ot-cti-watch
+EnvironmentFile=-/etc/nordic-ot-cti-watch.env
+ExecStart=/usr/bin/python3 -m nordic_ot_cti_watch -c /opt/nordic-ot-cti-watch/config.toml
+# Exit code 1 means HIGH/CRITICAL findings, not a failure.
+SuccessExitStatus=1
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/nordic-ot-cti-watch/state /opt/nordic-ot-cti-watch/reports
+PrivateTmp=true
