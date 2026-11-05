@@ -27,6 +27,10 @@ jobs:
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       CTI_WATCHLIST: ${{ secrets.CTI_WATCHLIST }}
       CTI_WEBHOOK_URL: ${{ secrets.CTI_WEBHOOK_URL }}
+      # Read only token, used for the GitHub API call that lists CISA's CSAF advisories.
+      GITHUB_TOKEN: ${{ github.token }}
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

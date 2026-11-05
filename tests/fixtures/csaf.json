@@ -1,0 +1,26 @@
+[
+ {
+  "document": {
+   "title": "Siemens SIMATIC Example PLC",
+   "tracking": {"id": "ICSA-26-300-01", "initial_release_date": "2026-10-27T06:00:00.000000Z"},
+   "references": [
+    {"category": "self", "summary": "JSON", "url": "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/2026/icsa-26-300-01.json"},
+    {"category": "self", "summary": "Web Version", "url": "https://www.cisa.gov/news-events/ics-advisories/icsa-26-300-01"}
+   ]
+  },
+  "product_tree": {"branches": [{"category": "vendor", "name": "Siemens"}]},
+  "vulnerabilities": [
+   {"cve": "CVE-2026-00001", "scores": [{"cvss_v3": {"baseScore": 9.8}}]},
+   {"cve": "CVE-2026-00002", "scores": [{"cvss_v3": {"baseScore": 5.3}}]}
+  ]
+ },
+ {
+  "document": {
+   "title": "Example Corp HMI",
+   "tracking": {"id": "ICSA-26-300-02", "initial_release_date": "2026-10-27T06:00:00.000000Z"},
+   "references": [{"category": "self", "url": "https://www.cisa.gov/news-events/ics-advisories/icsa-26-300-02"}]
+  },
+  "product_tree": {"branches": [{"category": "vendor", "name": "Example Corp"}]},
+  "vulnerabilities": []
+ }
+]

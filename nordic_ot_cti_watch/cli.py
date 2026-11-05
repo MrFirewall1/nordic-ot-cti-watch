@@ -12,7 +12,8 @@ from . import __version__
 from .config import Config
 from .output import State, line, notify, notify_telegram, write_reports
 from .scoring import Finding, rank, score_advisory, score_victim
-from .sources import SourceError, Victim, fetch_ics_advisories, fetch_victims, parse_feed
+from .sources import (SourceError, Victim, fetch_ics_advisories, fetch_ics_csaf, fetch_victims,
+                      parse_csaf, parse_feed)
 
 
 def _redact(text: str, secret: str) -> str:
@@ -40,8 +41,15 @@ def collect(cfg: Config, victims_file: str | None = None, feed_file: str | None 
             errors.append(f"ransomware.live: {e}")
     if cfg.enable_ics_advisories:
         try:
-            advisories = (parse_feed(Path(feed_file).read_bytes()) if feed_file
-                          else fetch_ics_advisories(cfg.cisa_ics_feed, cfg.timeout_seconds))
+            if feed_file:
+                raw = Path(feed_file).read_bytes()
+                advisories = ([parse_csaf(d) for d in json.loads(raw)]
+                              if feed_file.endswith(".json") else parse_feed(raw))
+            elif cfg.ics_source == "csaf":
+                advisories = fetch_ics_csaf(cfg.timeout_seconds, cfg.ics_limit,
+                                            github_token=os.environ.get("GITHUB_TOKEN", ""))
+            else:
+                advisories = fetch_ics_advisories(cfg.cisa_ics_feed, cfg.timeout_seconds)
             findings += [score_advisory(a, cfg) for a in advisories]
         except (SourceError, ValueError) as e:
             errors.append(f"CISA ICS feed: {e}")

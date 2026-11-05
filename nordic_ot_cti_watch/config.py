@@ -35,6 +35,9 @@ class Config:
     max_age_days: float = 14
     ransomware_api: str = "https://api.ransomware.live/v2"
     cisa_ics_feed: str = "https://www.cisa.gov/cybersecurity-advisories/ics-advisories.xml"
+    # "csaf" = CISA's CSAF repo on GitHub (works from cloud runners), "rss" = cisa.gov feed.
+    ics_source: str = "csaf"
+    ics_limit: int = 15
     enable_ransomware: bool = True
     enable_ics_advisories: bool = True
     request_delay_seconds: float = 2.0

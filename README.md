@@ -15,7 +15,7 @@ It is a small, dependency free Python tool that runs every hour in GitHub Action
 
 ```
 ┌──────────────────────────┐     ┌───────────────────────────┐
-│ ransomware.live API      │     │ CISA ICS advisories (RSS) │
+│ ransomware.live API      │     │ CISA ICS advisories (CSAF)│
 │ recent + NO SE DK FI IS  │     │                           │
 └────────────┬─────────────┘     └─────────────┬─────────────┘
              │                                 │
@@ -38,7 +38,7 @@ It is a small, dependency free Python tool that runs every hour in GitHub Action
 | Source | What | Why |
 |---|---|---|
 | [ransomware.live](https://www.ransomware.live) API v2 | Victims claimed on ransomware leak sites, with country and sector | Early signal that an organisation may be compromised |
-| [CISA ICS advisories](https://www.cisa.gov/news-events/cybersecurity-advisories) | New vulnerabilities in industrial products | Flags advisories for vendors common in Nordic OT (Siemens, ABB, Danfoss, Schneider Electric, Kongsberg and others) |
+| [CISA ICS advisories](https://www.cisa.gov/news-events/cybersecurity-advisories), read as CSAF from [cisagov/CSAF](https://github.com/cisagov/CSAF) | New vulnerabilities in industrial products, with CVEs and CVSS | Flags advisories for vendors common in Nordic OT (Siemens, ABB, Danfoss, Schneider Electric, Kongsberg and others). The CSAF repo is used because cisa.gov blocks many cloud servers |
 
 **OT relevant sectors** include energy and utilities, manufacturing, food and agriculture, transportation and logistics, water, oil and gas, chemicals, mining, maritime and aquaculture.
 
@@ -146,7 +146,7 @@ python3 -m nordic_ot_cti_watch --test-alert
 * **No Tor, no leak site access.** The tool only talks to public clearweb APIs. It drops the `.onion` claim URL from every record and links to the ransomware.live page instead. It never downloads leaked data.
 * **No dependencies.** Standard library only, Python 3.11 or newer, so it runs on a fresh Ubuntu VM.
 * **Claims are not facts.** Every report states that a leak site listing is a claim, not a confirmed breach. Verify before acting, and handle findings about named organisations responsibly.
-* **Source labels can be wrong.** Country and sector come from ransomware.live and are sometimes inferred. A company can be tagged with the wrong country, or "Other" when it is clearly industrial. The tool therefore also checks the description for OT terms and tells you which rule fired.
+* **Source labels can be wrong.** Country and sector come from ransomware.live and are sometimes inferred. A company can be tagged with the wrong country, or "Other" when it is clearly industrial. When the sector is missing or "Other", the tool falls back to the description, but only if it finds at least two different OT terms, so a municipality that mentions "transport" once is not flagged as OT. It always tells you which rule fired.
 * **One claim, one alert.** The same victim often appears in both the global and the per country feed with different field names. Items are deduplicated on group and victim name, and claims older than `max_age_days` are skipped so the first run does not flood you.
 * **Secrets stay private.** `config.toml` is git ignored, and in GitHub Actions the watchlist, bot token and chat ID live in repository secrets.
 

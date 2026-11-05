@@ -8,6 +8,7 @@ from .config import Config
 from .sources import Advisory, Victim
 
 PRIORITIES = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+UNCLASSIFIED = {"", "other", "not found", "unknown", "n/a"}
 
 
 def rank(p: str) -> int:
@@ -49,7 +50,14 @@ def score_victim(v: Victim, cfg: Config) -> Finding:
     reasons: list[str] = []
     nordic = v.country in cfg.countries
     ot_activity = _sector_hits(v.activity, cfg.ot_sectors)
-    ot = ot_activity or _sector_hits(v.description, cfg.ot_sectors)
+    ot = ot_activity
+    # Only fall back to the free text description when the source gave no real sector, and
+    # require two different OT terms. A municipality that mentions "transport" or an IT firm
+    # that mentions "automation" once should not be flagged as OT.
+    if not ot and v.activity.strip().lower() in UNCLASSIFIED:
+        desc_hits = _sector_hits(v.description, cfg.ot_sectors)
+        if len(desc_hits) >= 2:
+            ot = desc_hits
     watch = _match_terms(f"{v.victim} {v.domain} {v.description}", cfg.watchlist)
 
     if nordic:
@@ -79,6 +87,8 @@ def score_advisory(a: Advisory, cfg: Config) -> Finding:
     reasons = []
     if vendors:
         reasons.append("watched ICS vendor: " + ", ".join(vendors))
+    if a.cvss:
+        reasons.append(f"CVSS {a.cvss:g}")
     if watch:
         reasons.append("watchlist match: " + ", ".join(watch))
     prio = "HIGH" if watch else ("MEDIUM" if vendors else "LOW")

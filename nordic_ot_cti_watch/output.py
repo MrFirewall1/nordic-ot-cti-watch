@@ -156,10 +156,11 @@ def telegram_messages(findings: list[Finding]) -> list[str]:
                 f"Discovered: {_esc(i.discovered[:16].replace('T', ' '))} UTC"
                 f"{link}\n<i>Unverified leak site claim.</i>")
         else:
+            cves = f"\nCVEs: {_esc(', '.join(i.cves[:5]))}" if getattr(i, "cves", None) else ""
             msgs.append(
                 f"{ICON[f.priority]} <b>{f.priority}: ICS advisory</b>\n"
                 f'<a href="{_esc(i.link)}">{_esc(i.title)}</a>\n'
-                f"Why: {_esc('; '.join(f.reasons))}")
+                f"Why: {_esc('; '.join(f.reasons))}{cves}")
     return msgs
 
 

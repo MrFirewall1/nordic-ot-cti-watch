@@ -3,6 +3,7 @@ Tor / .onion sites and never downloads leaked data."""
 from __future__ import annotations
 
 import json
+import re
 import time
 import urllib.error
 import urllib.request
@@ -20,8 +21,9 @@ class SourceError(RuntimeError):
     pass
 
 
-def _get(url: str, timeout: float) -> bytes:
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "*/*"})
+def _get(url: str, timeout: float, headers: dict | None = None) -> bytes:
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "*/*",
+                                               **(headers or {})})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return r.read()
@@ -117,6 +119,8 @@ class Advisory:
     published: str
     summary: str = ""
     vendors: list[str] = field(default_factory=list)
+    cvss: float = 0.0
+    cves: list[str] = field(default_factory=list)
 
     @property
     def key(self) -> str:
@@ -151,3 +155,68 @@ def parse_feed(xml_bytes: bytes) -> list[Advisory]:
 
 def fetch_ics_advisories(feed_url: str, timeout: float) -> list[Advisory]:
     return parse_feed(_get(feed_url, timeout))
+
+
+# ---------------------------------------------------------------- CISA CSAF on GitHub
+# cisa.gov blocks many cloud IPs (HTTP 403 from GitHub Actions). CISA publishes the same ICS
+# advisories as machine readable CSAF 2.0 JSON in github.com/cisagov/CSAF, which is reachable.
+
+CSAF_TREE = "https://api.github.com/repos/cisagov/CSAF/git/trees/develop:csaf_files/OT/white/{year}"
+CSAF_RAW = "https://raw.githubusercontent.com/cisagov/CSAF/develop/csaf_files/OT/white/{year}/{name}"
+_CSAF_NAME = re.compile(r"^ics(m)?a-(\d\d)-(\d{3})-(\d\d)\.json$")
+
+
+def _csaf_sort_key(name: str) -> tuple[int, int, int]:
+    m = _CSAF_NAME.match(name)
+    return (int(m.group(2)), int(m.group(3)), int(m.group(4))) if m else (0, 0, 0)
+
+
+def parse_csaf(doc: dict) -> Advisory:
+    d = doc.get("document", {})
+    tracking = d.get("tracking", {})
+    adv_id = tracking.get("id", "")
+    refs = d.get("references", [])
+    web = next((r.get("url", "") for r in refs if "cisa.gov" in r.get("url", "")
+                and r.get("category") == "self"), "")
+    if not web:
+        web = next((r.get("url", "") for r in refs if r.get("category") == "self"), "")
+    vendors = [b.get("name", "") for b in doc.get("product_tree", {}).get("branches", [])
+               if b.get("category") == "vendor"]
+    cves, scores = [], []
+    for v in doc.get("vulnerabilities", []):
+        if v.get("cve"):
+            cves.append(v["cve"])
+        for s in v.get("scores", []):
+            score = (s.get("cvss_v3") or {}).get("baseScore") or (s.get("cvss_v4") or {}).get("baseScore")
+            if score:
+                scores.append(float(score))
+    adv = Advisory(
+        title=f"{adv_id} {d.get('title', '')}".strip(),
+        link=web,
+        published=tracking.get("initial_release_date", ""),
+        summary=" ".join(vendors),
+    )
+    adv.cvss = max(scores) if scores else 0.0
+    adv.cves = cves
+    return adv
+
+
+def fetch_ics_csaf(timeout: float, limit: int = 15, now: datetime | None = None,
+                   github_token: str = "") -> list[Advisory]:
+    """Latest `limit` OT advisories from cisagov/CSAF (one API call, then raw file fetches)."""
+    now = now or datetime.now(timezone.utc)
+    headers = {"Accept": "application/vnd.github+json"}
+    if github_token:
+        headers["Authorization"] = f"Bearer {github_token}"
+    names: list[tuple[int, str]] = []
+    for year in (now.year, now.year - 1) if now.month == 1 else (now.year,):
+        tree = json.loads(_get(CSAF_TREE.format(year=year), timeout, headers))
+        names += [(year, t["path"]) for t in tree.get("tree", []) if _CSAF_NAME.match(t.get("path", ""))]
+    names.sort(key=lambda yn: _csaf_sort_key(yn[1]))
+    out = []
+    for year, name in names[-limit:]:
+        try:
+            out.append(parse_csaf(json.loads(_get(CSAF_RAW.format(year=year, name=name), timeout))))
+        except (SourceError, ValueError):
+            continue  # one broken file should not stop the run
+    return out

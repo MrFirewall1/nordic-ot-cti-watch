@@ -29,6 +29,10 @@ max_age_days = 14
 enable_ransomware = true
 enable_ics_advisories = true
 ransomware_api = "https://api.ransomware.live/v2"
+# "csaf": CISA advisories from github.com/cisagov/CSAF (works from GitHub Actions).
+# "rss":  the cisa.gov RSS feed (often blocked with HTTP 403 from cloud servers).
+ics_source = "csaf"
+ics_limit = 15
 cisa_ics_feed = "https://www.cisa.gov/cybersecurity-advisories/ics-advisories.xml"
 
 [network]

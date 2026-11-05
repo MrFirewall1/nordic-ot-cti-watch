@@ -8,7 +8,7 @@ from pathlib import Path
 from nordic_ot_cti_watch.cli import main
 from nordic_ot_cti_watch.config import Config
 from nordic_ot_cti_watch.scoring import score_advisory, score_victim
-from nordic_ot_cti_watch.sources import Victim, parse_feed
+from nordic_ot_cti_watch.sources import Victim, _csaf_sort_key, parse_csaf, parse_feed
 
 FIX = Path(__file__).parent / "fixtures"
 
@@ -61,7 +61,45 @@ class ScoringTests(unittest.TestCase):
         self.assertLess(self.v["Fjord Kraftverk AS"].age_days(now), 2)
 
 
+class FalsePositiveTests(unittest.TestCase):
+    """Regression cases taken from real ransomware.live descriptions."""
+
+    def setUp(self):
+        self.cfg = Config()
+
+    def v(self, activity, description):
+        return Victim("X", "g", "SE", activity, description, "", "", "2026-11-01T00:00:00+00:00", "")
+
+    def test_known_non_ot_sector_is_not_upgraded_by_description(self):
+        municipality = self.v("Government & Defense", "Municipality with schools, transport and water services")
+        self.assertEqual(score_victim(municipality, self.cfg).priority, "MEDIUM")
+
+    def test_single_description_hit_is_not_enough(self):
+        it_firm = self.v("Not Found", "IT services company providing cloud, cybersecurity and automation")
+        self.assertEqual(score_victim(it_firm, self.cfg).priority, "MEDIUM")
+
+    def test_two_description_hits_with_unclassified_sector(self):
+        plant = self.v("Other", "Power plant automation company delivering control systems")
+        self.assertEqual(score_victim(plant, self.cfg).priority, "HIGH")
+
+
 class FeedTests(unittest.TestCase):
+    def test_csaf_parsing_and_scoring(self):
+        ads = [parse_csaf(d) for d in json.loads((FIX / "csaf.json").read_text())]
+        siemens, other = ads
+        self.assertEqual(siemens.title, "ICSA-26-300-01 Siemens SIMATIC Example PLC")
+        self.assertEqual(siemens.link, "https://www.cisa.gov/news-events/ics-advisories/icsa-26-300-01")
+        self.assertEqual(siemens.cvss, 9.8)
+        self.assertEqual(siemens.cves, ["CVE-2026-00001", "CVE-2026-00002"])
+        f = score_advisory(siemens, Config())
+        self.assertEqual(f.priority, "MEDIUM")
+        self.assertIn("CVSS 9.8", f.reasons)
+        self.assertEqual(score_advisory(other, Config()).priority, "LOW")
+
+    def test_csaf_sort_is_chronological_across_icsa_and_icsma(self):
+        names = ["icsma-26-295-01.json", "icsa-26-307-01.json", "icsa-26-302-03.json"]
+        self.assertEqual(sorted(names, key=_csaf_sort_key)[-1], "icsa-26-307-01.json")
+
     def test_advisory_vendor_and_watchlist(self):
         cfg = Config(watchlist=["Contoso Energy"])
         ads = {a.title: a for a in parse_feed((FIX / "ics-advisories.xml").read_bytes())}
