@@ -79,8 +79,12 @@ def main(argv: list[str] | None = None) -> int:
         test = Finding("ransomware", "HIGH", ["test alert, the watcher is connected"],
                        Victim("Test Kraftverk AS", "testgroup", "NO", "Energy & Utilities", "", "",
                               "", datetime.now(timezone.utc).isoformat(), ""))
-        notify_telegram([test], tg_token, tg_chat)
-        notify([test], cfg.webhook_url, cfg.webhook_format)
+        try:
+            notify_telegram([test], tg_token, tg_chat)
+            notify([test], cfg.webhook_url, cfg.webhook_format)
+        except Exception as e:  # noqa: BLE001
+            print(f"error: test alert failed: {_redact(str(e), tg_token)}", file=sys.stderr)
+            return 2
         print("test alert sent", file=sys.stderr)
         return 0
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import time
+import urllib.error
 import urllib.request
 from dataclasses import asdict
 from datetime import datetime, timezone
@@ -117,8 +118,23 @@ def notify(findings: list[Finding], url: str, fmt: str, timeout: float = 15) -> 
 def _post_json(url: str, body: dict, timeout: float) -> None:
     req = urllib.request.Request(url, data=json.dumps(body).encode(), method="POST",
                                  headers={"Content-Type": "application/json", "User-Agent": USER_AGENT})
-    with urllib.request.urlopen(req, timeout=timeout):
-        pass
+    try:
+        with urllib.request.urlopen(req, timeout=timeout):
+            pass
+    except urllib.error.HTTPError as e:
+        # Surface the API's own explanation (e.g. Telegram's "chat not found"), never the URL,
+        # which for Telegram contains the bot token.
+        detail = ""
+        try:
+            detail = json.loads(e.read().decode("utf-8", "replace")).get("description", "")
+        except Exception:  # noqa: BLE001
+            pass
+        hint = ""
+        if "chat not found" in detail.lower():
+            hint = " (open your bot in Telegram, press Start and send it a message, then check TELEGRAM_CHAT_ID)"
+        elif e.code == 401:
+            hint = " (the bot token is wrong or was revoked)"
+        raise RuntimeError(f"HTTP {e.code}: {detail or e.reason}{hint}") from None
 
 
 def _esc(s: str) -> str:
