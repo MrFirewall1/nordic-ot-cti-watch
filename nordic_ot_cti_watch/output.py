@@ -54,7 +54,7 @@ def line(f: Finding) -> str:
 def markdown_report(findings: list[Finding], generated: datetime) -> str:
     rw = [f for f in findings if f.kind == "ransomware"]
     ics = [f for f in findings if f.kind == "ics-advisory"]
-    news = [f for f in findings if f.kind == "news"]
+    news = [f for f in findings if f.kind in ("news", "telegram")]
     out = [f"# Nordic OT CTI Watch report",
            "",
            f"Generated {generated.strftime('%Y-%m-%d %H:%M UTC')}. "

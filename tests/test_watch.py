@@ -140,6 +140,24 @@ class NewsTests(unittest.TestCase):
         self.assertIn("example-energi.se", self.tg[0].summary)
         self.assertEqual([self.prio(p) for p in self.tg], ["HIGH", "LOW", "MEDIUM"])
 
+    def test_ivanti_ics_is_not_industrial(self):
+        from nordic_ot_cti_watch.news import NewsItem
+        n = NewsItem("Attackers chain Ivanti Connect Secure (ICS) flaws to gain root", "u", "", "", "x")
+        self.assertEqual(self.prio(n), "LOW")
+
+    def test_research_account_posts(self):
+        from nordic_ot_cti_watch.news import score_news
+        from nordic_ot_cti_watch.tg_account import to_item
+        d = datetime(2026, 11, 5, 20, 0, tzinfo=timezone.utc)
+        private = to_item(-1001234567890, "Closed channel", None, 42, d,
+                          "Атакуем энергетику Норвегии: example-kraft.no")
+        self.assertEqual(private.link, "https://t.me/c/1234567890/42")
+        self.assertTrue(private.key.startswith("tg:"))
+        self.assertEqual(score_news(private, []).priority, "HIGH")
+        public = to_item(-1009, "Open", "somechannel", 7, d, "hello")
+        self.assertEqual(public.link, "https://t.me/somechannel/7")
+        self.assertIsNone(to_item(1, "x", None, 1, d, "   "))
+
     def test_watchlist_in_news_is_critical(self):
         from nordic_ot_cti_watch.news import score_news
         self.assertEqual(score_news(self.tg[0], ["example-energi"]).priority, "CRITICAL")

@@ -154,6 +154,16 @@ The watcher reads the public web preview at `https://t.me/s/<name>`: no Telegram
 
 Any post from a watched channel that names a Nordic country (in English, the Nordic languages or Russian) or a Nordic domain is HIGH. A post that mentions SCADA, PLC, HMI or similar is MEDIUM.
 
+### Closed channels: research account
+
+Most groups now post in invite only channels that the web preview cannot read. For those, use a dedicated research Telegram account (a sock puppet: own phone number, no real name, phone number hidden, never posts). Join the channels and group chats with that account, then:
+
+1. Create an API key at [my.telegram.org](https://my.telegram.org) → *API development tools* (gives `api_id` and `api_hash`).
+2. On your own computer: `pip install telethon` and `python tools/telegram_login.py`. Log in with the research account. It prints a session string.
+3. Add three repository secrets: `TG_API_ID`, `TG_API_HASH`, `TG_SESSION`. The session string gives full access to the account, so treat it like a password.
+
+Every run then reads new posts from all channels and group chats the account is in, scores them like the public channels, and alerts on Telegram. The account only reads: the watcher never sends, reacts or joins anything.
+
 ## Design choices
 
 * **Attacks, not patches.** News about vulnerabilities, CVEs and patches is filtered out unless the headline is about an actual attack or exploitation.

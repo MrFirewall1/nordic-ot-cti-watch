@@ -21,7 +21,7 @@ def _redact(text: str, secret: str) -> str:
     return text.replace(secret, "***") if len(secret) >= 8 else text
 
 
-PREFIX = {"ransomware": "rw:", "ics-advisory": "ics:", "news": "news:"}
+PREFIX = {"ransomware": "rw:", "ics-advisory": "ics:", "news": "news:", "telegram": "tg:"}
 
 
 def collect(cfg: Config, victims_file: str | None = None, feed_file: str | None = None,
@@ -90,6 +90,19 @@ def collect(cfg: Config, victims_file: str | None = None, feed_file: str | None 
             if i.key not in seen_keys:
                 seen_keys.add(i.key)
                 findings.append(score_news(i, cfg.watchlist))
+    tg = {k: os.environ.get(k, "").strip() for k in ("TG_API_ID", "TG_API_HASH", "TG_SESSION")}
+    if all(tg.values()) and not (news_file or telegram_file or victims_file or feed_file):
+        try:
+            from .tg_account import fetch_account
+            posts, w = fetch_account(tg["TG_API_ID"], tg["TG_API_HASH"], tg["TG_SESSION"],
+                                     cfg.max_age_days)
+            warnings += w
+            for p in posts:
+                f = score_news(p, cfg.watchlist)
+                f.kind = "telegram"
+                findings.append(f)
+        except Exception as e:  # noqa: BLE001
+            errors.append(f"telegram account: {type(e).__name__}: {e}")
     return findings, errors, warnings
 
 

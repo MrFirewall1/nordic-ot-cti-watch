@@ -1,10 +1,11 @@
 name: watch
 
-# Runs every hour in the cloud, also when your own computer is off.
+# Runs every 10 minutes in the cloud, also when your own computer is off.
 # Alerts go to Telegram when these repository secrets are set:
 #   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 # Optional secrets: CTI_WATCHLIST (comma separated names), CTI_TELEGRAM_CHANNELS (comma separated
 # public hacktivist channel names), CTI_WEBHOOK_URL.
+# Research Telegram account (reads closed channels it has joined): TG_API_ID, TG_API_HASH, TG_SESSION.
 on:
   schedule:
     - cron: "*/10 * * * *"   # every 10 min (public repo: Actions minutes are free)
@@ -29,6 +30,9 @@ jobs:
       CTI_WATCHLIST: ${{ secrets.CTI_WATCHLIST }}
       CTI_WEBHOOK_URL: ${{ secrets.CTI_WEBHOOK_URL }}
       CTI_TELEGRAM_CHANNELS: ${{ secrets.CTI_TELEGRAM_CHANNELS }}
+      TG_API_ID: ${{ secrets.TG_API_ID }}
+      TG_API_HASH: ${{ secrets.TG_API_HASH }}
+      TG_SESSION: ${{ secrets.TG_SESSION }}
       # Read only token, used for the GitHub API call that lists CISA's CSAF advisories.
       GITHUB_TOKEN: ${{ github.token }}
     permissions:
@@ -38,6 +42,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+
+      - name: Install Telegram client (only when the research account is set up)
+        if: ${{ !inputs.test_alert && env.TG_SESSION != '' }}
+        run: pip install --quiet "telethon>=1.36,<2"
 
       - name: Send test alert
         if: ${{ inputs.test_alert }}
