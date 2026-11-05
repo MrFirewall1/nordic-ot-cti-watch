@@ -125,6 +125,7 @@ NORDIC = _rx([
     r"норвег", r"швец", r"швед", r"дани", r"датск", r"финлянд", r"финск", r"исланд",
     r"\.no\b", r"\.se\b", r"\.dk\b", r"\.fi\b", r"\.is\b",
 ])
+IVANTI = re.compile(r"ivanti|connect secure|pulse secure", re.I)
 VULN_ONLY = re.compile(r"CVE-\d|vulnerabilit|patch|advisory|flaw|security update|bug bounty", re.I)
 STRONG_ATTACK = re.compile(r"exploit|attack|hack|breach|sabotag|ransomware|ddos|in the wild", re.I)
 
@@ -142,6 +143,8 @@ def score_news(n: NewsItem, watchlist: list[str]):
     from .scoring import Finding, _match_terms
     text = f"{n.title} {n.summary}"
     ot = _hits(OT_ACRONYMS, text) + _hits(OT_TERMS, text)
+    if IVANTI.search(text):  # "ICS" = Ivanti Connect Secure, not industrial control systems
+        ot = [w for w in ot if w != "ics"]
     attack_title = _hits(ATTACK_TERMS, n.title)
     attack = attack_title or _hits(ATTACK_TERMS, text)
     actor = _hits(ACTORS, text)

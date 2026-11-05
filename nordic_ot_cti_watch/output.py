@@ -93,7 +93,8 @@ def markdown_report(findings: list[Finding], generated: datetime) -> str:
         out.append("")
     if not findings:
         out += ["No new items matched the filters.", ""]
-    out += ["---", "Data: [ransomware.live](https://www.ransomware.live) and "
+    out += ["---", "Data: public hacktivist channels, news and CERT feeds (linked per item), "
+            "[ransomware.live](https://www.ransomware.live) and, if enabled, "
             "[CISA ICS advisories](https://www.cisa.gov/news-events/cybersecurity-advisories)."]
     return "\n".join(out) + "\n"
 
