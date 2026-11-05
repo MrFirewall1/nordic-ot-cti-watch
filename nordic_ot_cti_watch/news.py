@@ -95,7 +95,7 @@ OT_TERMS = _rx([
     r"kraftverk", r"kraftselskap", r"kraftstasjon", r"kraftforsyning", r"strømnett", r"strømforsyning",
     r"strømbrudd", r"vannverk", r"fjernvarme", r"kritisk infrastruktur", r"kjøle(?:disk|anlegg|system)",
     r"fryse(?:disk|r|anlegg)", r"styringssystem", r"damanlegg", r"energiselskap", r"nettselskap",
-    r"elnet", r"vandværk", r"kraftværk", r"køle(?:anlæg|disk)", r"frysedisk",
+    r"elnet", r"vandværk", r"kraftværk", r"køle(?:anlæg|disk|system)\w*", r"frysedisk", r"frysesystem\w*", r"kolde?kæde", r"termostat\w*",
     # Swedish
     r"elnät", r"kraftverk", r"vattenverk", r"kylanläggning", r"kyl(?:disk|system)", r"frys(?:disk|ar)",
     r"styrsystem", r"energibolag", r"elbolag", r"dammluck",
@@ -107,7 +107,7 @@ ATTACK_TERMS = _rx([
     r"ransomware", r"ddos", r"denial.of.service", r"sabotag", r"wiper", r"tamper", r"manipulat",
     r"took control", r"disrupt", r"claims? responsibility", r"exploited in the wild", r"targeted",
     r"angrep", r"angreb", r"dataangrep", r"hackerangrep", r"løsepengevirus", r"overbelastning",
-    r"attack", r"intrång", r"överbelastningsattack", r"it-attack", r"cyberangrep",
+    r"attack", r"intrång", r"överbelastningsattack", r"it-attack", r"cyberangrep", r"cyberangreb", r"cyberattack\w*", r"cyberattak\w*", r"hackerangreb",
     r"hyökkäy", r"palvelunesto", r"tietomurto", r"kyberhyökkäy",
 ])
 ACTORS = _rx([

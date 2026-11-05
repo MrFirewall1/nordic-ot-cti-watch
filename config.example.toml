@@ -59,6 +59,9 @@ news_feeds = [
   { name = "digi.no", url = "https://www.digi.no/rss", country = "NO" },
   { name = "SVT", url = "https://www.svt.se/nyheter/rss.xml", country = "SE" },
   { name = "DR", url = "https://www.dr.dk/nyheder/service/feeds/allenyheder", country = "DK" },
+  { name = "Traficom NCSC-FI", url = "https://www.kyberturvallisuuskeskus.fi/feed/rss/fi", country = "FI" },
+  { name = "SAMSIK (DK)", url = "https://samsik.dk/feed/", country = "DK" },
+  { name = "MCF (SE)", url = "https://www.mcf.se/sv/rss-floden/rss-alla-nyheter-fran-myndigheten-for-civilt-forsvar/", country = "SE" },
   { name = "Yle", url = "https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET", country = "FI" },
 ]
 
