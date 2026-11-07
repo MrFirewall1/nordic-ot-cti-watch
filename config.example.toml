@@ -74,7 +74,7 @@ context_feeds = [
   { name = "Dragos", url = "https://www.dragos.com/blog.rss" },
   { name = "SecurityWeek ICS", url = "https://www.securityweek.com/category/ics-ot/feed/" },
 ]
-digest_hour_utc = 6    # first run at or after 06:00 UTC (07:00 Oslo in winter)
+digest_hour_utc = -1   # -1 = send new context items on every run; 0-23 = once a day at that UTC hour
 digest_max_items = 12
 
 [network]

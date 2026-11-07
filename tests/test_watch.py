@@ -320,6 +320,6 @@ class ContextDigestTests(unittest.TestCase):
             due, items = select_digest(st, [f], late, 6)
             self.assertTrue(due)
             self.assertEqual(len(items), 1)
-            self.assertIn("Daily context", digest_message(items))
+            self.assertIn("Context", digest_message(items))
             st.seen["meta:digest"] = late.date().isoformat()
             self.assertFalse(select_digest(st, [f], late, 6)[0])

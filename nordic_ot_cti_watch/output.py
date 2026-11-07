@@ -190,7 +190,7 @@ def digest_message(findings: list[Finding], max_items: int = 8) -> str:
     """One Telegram message with the newest background items (hacktivists, OT attacks, trends)."""
     items = sorted(findings, key=lambda f: f.item.published or "", reverse=True)
     shown = items[:max_items]
-    out = [f"📰 <b>Daily context: {len(items)} new item(s)</b>"]
+    out = [f"📰 <b>Context: {len(items)} new item(s)</b>"]
     for f in shown:
         i = f.item
         out.append(f'• <a href="{_esc(i.link)}">{_esc(i.title[:140])}</a> <i>({_esc(i.source)}, '

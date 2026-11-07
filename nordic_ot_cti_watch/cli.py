@@ -29,7 +29,8 @@ def select_digest(state, ctx: list[Finding], now: datetime, hour: int, all_items
     """Returns (due, items). The digest goes out once per UTC day, on the first run at or after `hour`;
     until then context items stay unseen so none are lost."""
     today = now.date().isoformat()
-    due = now.hour >= hour and state.seen.get("meta:digest") != today
+    # hour < 0: no daily limit, every run sends whatever is new (never an empty message).
+    due = hour < 0 or (now.hour >= hour and state.seen.get("meta:digest") != today)
     new = ctx if all_items else [f for f in ctx if state.is_new(f.key)]
     return due, new
 
