@@ -117,6 +117,8 @@ ACTORS = _rx([
     r"infrastructure destruction squad", r"hacktivis", r"pro-russian hack", r"sandworm", r"apt ?44",
     r"volt typhoon", r"electrum", r"voltzite", r"chernovite", r"kamacite", r"hackergruppe",
     r"hackergrupp", r"prorussisk", r"proryska", r"venäjämieli",
+    r"inteid", r"silent ?crow", r"cyber ?russian ?squad", r"it army of russia", r"cyber ?partisans?",
+    r"киберкорпус", r"киберпартизан", r"смешарики",
 ])
 NORDIC = _rx([
     r"norw", r"norge", r"norsk", r"swed", r"sverige", r"svensk", r"denmark", r"danish", r"danmark",
