@@ -187,6 +187,15 @@ def score_news(n: NewsItem, watchlist: list[str]):
 ACTORS_CTX = _rx([r"хактивист", r"прорусск", r"проукраинск", r"ддос", r"DDoS", r"хакерск\w* групп"])
 OT_CTX = _rx([r"АСУ ?ТП", r"SCADA", r"критическ\w* инфраструктур", r"промышленн\w* систем", r"OT[ -]?сет"])
 ATTACK_CTX = _rx([r"атак", r"взлом", r"кибератак", r"инцидент", r"утечк"])
+# Strategic background: what Russia plans, what trends, how it could reach the Nordics.
+RUSSIA_CTX = _rx([r"russia\w*", r"kremlin", r"\bGRU\b", r"\bFSB\b", r"\bSVR\b", r"pro-russian",
+                  r"moscow", r"кремл", r"\bГРУ\b", r"\bФСБ\b"])
+STRAT_CTX = _rx([r"critical infrastructure", r"energy", r"power grid", r"hybrid", r"sabotage",
+                 r"undersea", r"subsea", r"baltic", r"\bNATO\b", r"europe", r"nordic", r"scandinav",
+                 r"water", r"election", r"disinformation", r"kritisk infrastruktur", r"hybrid",
+                 r"sabotasje", r"НАТО", r"Европ", r"энергетик"])
+TREND_CTX = _rx([r"threat landscape", r"trend", r"surge", r"increase", r"report", r"warns?",
+                 r"forecast", r"annual", r"quarter", r"Q[1-4] 20", r"тренд", r"рост", r"аналитик"])
 
 
 class CtxItem(NewsItem):
@@ -204,9 +213,15 @@ def score_context(n: NewsItem):
     actor = _hits(ACTORS, text) + _hits(ACTORS_CTX, text)
     ot = _hits(OT_ATTACKISH_OT, text)
     attack = _hits(ATTACK_TERMS, text) + _hits(ATTACK_CTX, text)
-    if not (actor or (ot and attack)):
+    strat = _hits(RUSSIA_CTX, text) and _hits(STRAT_CTX, text)
+    trend = ot and _hits(TREND_CTX, text)
+    if not (actor or (ot and attack) or strat or trend):
         return None
     reasons = []
+    if strat:
+        reasons.append("Russia / strategic: " + ", ".join(_hits(RUSSIA_CTX, text)[:2] + _hits(STRAT_CTX, text)[:2]))
+    if trend:
+        reasons.append("OT trend: " + ", ".join(_hits(TREND_CTX, text)[:2]))
     if actor:
         reasons.append("hacktivist / actor: " + ", ".join(actor))
     if ot:

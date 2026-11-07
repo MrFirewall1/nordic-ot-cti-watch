@@ -69,9 +69,11 @@ news_feeds = [
 # trend reports). No Nordic requirement, never instant alerts.
 context_feeds = [
   { name = "SecPost", url = "https://secpost.ru/feed" },
+  { name = "Industrial Cyber", url = "https://industrialcyber.co/feed/" },
+  { name = "The Record", url = "https://therecord.media/feed" },
 ]
 digest_hour_utc = 6    # first run at or after 06:00 UTC (07:00 Oslo in winter)
-digest_max_items = 8
+digest_max_items = 12
 
 [network]
 request_delay_seconds = 2.0
