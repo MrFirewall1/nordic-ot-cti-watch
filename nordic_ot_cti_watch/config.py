@@ -45,6 +45,8 @@ DEFAULT_CONTEXT_FEEDS = [
     {"name": "SecPost", "url": "https://secpost.ru/feed"},
     {"name": "Industrial Cyber", "url": "https://industrialcyber.co/feed/"},
     {"name": "The Record", "url": "https://therecord.media/feed"},
+    {"name": "Dragos", "url": "https://www.dragos.com/blog.rss"},
+    {"name": "SecurityWeek ICS", "url": "https://www.securityweek.com/category/ics-ot/feed/"},
 ]
 
 
