@@ -10,8 +10,9 @@ from pathlib import Path
 
 from . import __version__
 from .config import Config
-from .news import fetch_feed, fetch_telegram, parse_telegram, score_news
-from .output import State, line, notify, notify_telegram, write_reports
+from .news import (fetch_context, fetch_feed, fetch_telegram, parse_telegram, score_context,
+                   score_news)
+from .output import (State, digest_message, line, notify, notify_telegram, write_reports)
 from .scoring import Finding, rank, score_advisory, score_victim
 from .sources import (SourceError, Victim, fetch_ics_advisories, fetch_ics_csaf, fetch_victims,
                       parse_csaf, parse_feed)
@@ -22,6 +23,15 @@ def _redact(text: str, secret: str) -> str:
 
 
 PREFIX = {"ransomware": "rw:", "ics-advisory": "ics:", "news": "news:", "telegram": "tg:"}
+
+
+def select_digest(state, ctx: list[Finding], now: datetime, hour: int, all_items: bool = False):
+    """Returns (due, items). The digest goes out once per UTC day, on the first run at or after `hour`;
+    until then context items stay unseen so none are lost."""
+    today = now.date().isoformat()
+    due = now.hour >= hour and state.seen.get("meta:digest") != today
+    new = ctx if all_items else [f for f in ctx if state.is_new(f.key)]
+    return due, new
 
 
 def collect(cfg: Config, victims_file: str | None = None, feed_file: str | None = None,
@@ -90,6 +100,20 @@ def collect(cfg: Config, victims_file: str | None = None, feed_file: str | None 
             if i.key not in seen_keys:
                 seen_keys.add(i.key)
                 findings.append(score_news(i, cfg.watchlist))
+    if cfg.enable_news and not (news_file or telegram_file or victims_file or feed_file):
+        seen_ctx = set()
+        for f in cfg.context_feeds:
+            try:
+                for i in fetch_context(f.get("name", f["url"]), f["url"], cfg.timeout_seconds):
+                    if cfg.max_age_days and (age := i.age_days(now)) is not None \
+                            and age > cfg.max_age_days:
+                        continue
+                    c = score_context(i)
+                    if c and c.item.key not in seen_ctx:
+                        seen_ctx.add(c.item.key)
+                        findings.append(c)
+            except Exception as e:  # noqa: BLE001
+                warnings.append(f"context feed {f.get('name', f.get('url'))}: {e}")
     tg = {k: os.environ.get(k, "").strip() for k in ("TG_API_ID", "TG_API_HASH", "TG_SESSION")}
     if all(tg.values()) and not (news_file or telegram_file or victims_file or feed_file):
         try:
@@ -159,6 +183,8 @@ def main(argv: list[str] | None = None) -> int:
     now = datetime.fromisoformat(a.now) if a.now else None
     findings, errors, warnings = collect(cfg, a.victims_file, a.feed_file, now, a.news_file,
                                          a.telegram_file)
+    ctx_all = [f for f in findings if f.kind == "context"]
+    findings = [f for f in findings if f.kind != "context"]
     threshold = rank(cfg.min_priority)
     matched = [f for f in findings if rank(f.priority) >= threshold]
     state = State(cfg.state_file)
@@ -210,9 +236,23 @@ def main(argv: list[str] | None = None) -> int:
         for f in matched:
             if delivered or f.key not in new_keys:
                 state.mark(f.key)
+        # Daily context digest (background reading, one message per day).
+        run_now = now or datetime.now(timezone.utc)
+        due, ctx_new = select_digest(state, ctx_all, run_now, cfg.digest_hour_utc)
+        if due and delivered and tg_token and tg_chat:
+            try:
+                if ctx_new:
+                    notify_telegram([], tg_token, tg_chat,
+                                    summary=digest_message(ctx_new, cfg.digest_max_items))
+                for f in ctx_new:
+                    state.mark(f.key)
+                state.seen["meta:digest"] = run_now.date().isoformat()
+            except Exception as e:  # noqa: BLE001
+                errors.append(f"digest: {e}")
+                print(f"warning: digest failed: {_redact(str(e), tg_token)}", file=sys.stderr)
         state.save()
 
-    if errors and not findings:
+    if errors and not findings and not ctx_all:
         return 2
     return 1 if any(f.priority in ("HIGH", "CRITICAL") for f in new) else 0
 

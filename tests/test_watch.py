@@ -290,3 +290,36 @@ class CliTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ContextDigestTests(unittest.TestCase):
+    def _ctx(self, title, link):
+        from nordic_ot_cti_watch.news import NewsItem, score_context
+        return score_context(NewsItem(title, link, "2026-11-06T12:00:00+00:00", "", "SecPost"))
+
+    def test_hacktivist_background_is_context_not_alert(self):
+        f = self._ctx("Хактивисты объединяют усилия с поставщиками DDoS-атак", "http://a/1")
+        self.assertIsNotNone(f)
+        self.assertEqual(f.kind, "context")
+        self.assertTrue(f.item.key.startswith("ctx:"))
+
+    def test_unrelated_is_dropped(self):
+        self.assertIsNone(self._ctx("Windows 11 можно взломать через Paint", "http://a/2"))
+
+    def test_digest_is_due_once_per_day_after_the_hour(self):
+        import tempfile
+        from datetime import datetime, timezone
+        from nordic_ot_cti_watch.cli import select_digest
+        from nordic_ot_cti_watch.output import State, digest_message
+        with tempfile.TemporaryDirectory() as d:
+            st = State(d + "/s.json")
+            f = self._ctx("Pro-Russian hacktivists announce DDoS alliance", "http://a/3")
+            early = datetime(2026, 11, 7, 5, 0, tzinfo=timezone.utc)
+            late = datetime(2026, 11, 7, 6, 30, tzinfo=timezone.utc)
+            self.assertFalse(select_digest(st, [f], early, 6)[0])
+            due, items = select_digest(st, [f], late, 6)
+            self.assertTrue(due)
+            self.assertEqual(len(items), 1)
+            self.assertIn("Daily context", digest_message(items))
+            st.seen["meta:digest"] = late.date().isoformat()
+            self.assertFalse(select_digest(st, [f], late, 6)[0])
