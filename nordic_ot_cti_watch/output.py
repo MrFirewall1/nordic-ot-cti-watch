@@ -132,10 +132,24 @@ def notify(findings: list[Finding], url: str, fmt: str, timeout: float = 15) -> 
 def _post_json(url: str, body: dict, timeout: float) -> None:
     req = urllib.request.Request(url, data=json.dumps(body).encode(), method="POST",
                                  headers={"Content-Type": "application/json", "User-Agent": USER_AGENT})
-    try:
-        with urllib.request.urlopen(req, timeout=timeout):
-            pass
-    except urllib.error.HTTPError as e:
+    for attempt in range(4):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout):
+                return
+        except urllib.error.HTTPError as e:
+            if e.code != 429 or attempt == 3:
+                err = e
+                break
+            # Telegram flood control: wait for the time it asks for, then try again.
+            wait = 5
+            try:
+                wait = int(json.loads(e.read().decode("utf-8", "replace"))
+                           .get("parameters", {}).get("retry_after", 5))
+            except Exception:  # noqa: BLE001
+                pass
+            time.sleep(min(wait + 1, 30))
+    e = err
+    if True:
         # Surface the API's own explanation (e.g. Telegram's "chat not found"), never the URL,
         # which for Telegram contains the bot token.
         detail = ""
