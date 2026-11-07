@@ -177,3 +177,45 @@ def score_news(n: NewsItem, watchlist: list[str]):
     else:
         prio = "LOW"
     return Finding("news", prio, reasons, n)
+
+
+# ----------------------------------------------------------------------------- context digest
+# Background reading (trend reports, hacktivist alliances, OT attacks anywhere). Not alerts: these go
+# into one daily summary, so no Nordic requirement here.
+ACTORS_CTX = _rx([r"хактивист", r"прорусск", r"проукраинск", r"ддос", r"DDoS", r"хакерск\w* групп"])
+OT_CTX = _rx([r"АСУ ?ТП", r"SCADA", r"критическ\w* инфраструктур", r"промышленн\w* систем", r"OT[ -]?сет"])
+ATTACK_CTX = _rx([r"атак", r"взлом", r"кибератак", r"инцидент", r"утечк"])
+
+
+class CtxItem(NewsItem):
+    """Background item for the daily digest. Own key prefix so it never mixes with alerts."""
+
+    @property
+    def key(self) -> str:
+        return "ctx:" + (self.link or self.title)
+
+
+def score_context(n: NewsItem):
+    """A Finding of kind "context" if the item is background on hacktivists or OT attacks, else None."""
+    from .scoring import Finding
+    text = f"{n.title} {n.summary}"
+    actor = _hits(ACTORS, text) + _hits(ACTORS_CTX, text)
+    ot = _hits(OT_ATTACKISH_OT, text)
+    attack = _hits(ATTACK_TERMS, text) + _hits(ATTACK_CTX, text)
+    if not (actor or (ot and attack)):
+        return None
+    reasons = []
+    if actor:
+        reasons.append("hacktivist / actor: " + ", ".join(actor))
+    if ot:
+        reasons.append("OT: " + ", ".join(ot))
+    item = CtxItem(n.title, n.link, n.published, n.summary, n.source, n.region)
+    return Finding("context", "MEDIUM", reasons, item)
+
+
+OT_ATTACKISH_OT = re.compile(OT_ACRONYMS.pattern + "|" + OT_TERMS.pattern + "|" + OT_CTX.pattern,
+                             re.I)
+
+
+def fetch_context(name: str, url: str, timeout: float) -> list[NewsItem]:
+    return fetch_feed(name, url, "", timeout)

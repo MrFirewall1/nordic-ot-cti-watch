@@ -40,6 +40,11 @@ DEFAULT_NEWS_FEEDS = [
     {"name": "Yle", "url": "https://feeds.yle.fi/uutiset/v1/recent.rss?publisherIds=YLE_UUTISET", "country": "FI"},
 ]
 
+# Background reading for the daily digest (no Nordic requirement, not instant alerts).
+DEFAULT_CONTEXT_FEEDS = [
+    {"name": "SecPost", "url": "https://secpost.ru/feed"},
+]
+
 
 @dataclass
 class Config:
@@ -58,6 +63,9 @@ class Config:
     ics_limit: int = 15
     enable_news: bool = False
     news_feeds: list[dict] = field(default_factory=lambda: [dict(f) for f in DEFAULT_NEWS_FEEDS])
+    context_feeds: list[dict] = field(default_factory=lambda: [dict(f) for f in DEFAULT_CONTEXT_FEEDS])
+    digest_hour_utc: int = 6      # send the daily digest on the first run at or after this UTC hour
+    digest_max_items: int = 8
     # Public hacktivist channels read via t.me/s/<name>. Names change often, so they are set in
     # config or the CTI_TELEGRAM_CHANNELS secret rather than hard coded.
     telegram_channels: list[str] = field(default_factory=list)
